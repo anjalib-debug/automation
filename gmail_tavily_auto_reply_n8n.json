@@ -1,0 +1,178 @@
+{
+  "name": "Gmail Tavily Auto Reply Research",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false
+      },
+      "id": "1",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "from",
+              "value": "={{$json.from.email}}"
+            },
+            {
+              "name": "subject",
+              "value": "={{$json.subject}}"
+            },
+            {
+              "name": "body",
+              "value": "={{$json.textPlain || $json.snippet || $json.textHtml}}"
+            }
+          ]
+        }
+      },
+      "id": "2",
+      "name": "Prepare Email Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.tavily.com/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"api_key\":\"YOUR_TAVILY_API_KEY\",\"query\":\"{{$json.body}}\",\"search_depth\":\"advanced\",\"include_answer\":true,\"max_results\":5}"
+      },
+      "id": "3",
+      "name": "Tavily Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "to",
+              "value": "={{$('Prepare Email Data').item.json.from}}"
+            },
+            {
+              "name": "subject",
+              "value": "=Re: {{$('Prepare Email Data').item.json.subject}}"
+            },
+            {
+              "name": "message",
+              "value": "={{$json.answer || 'No answer found'}}"
+            }
+          ]
+        }
+      },
+      "id": "4",
+      "name": "Create Reply",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        950,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{$json.to}}",
+        "subject": "={{$json.subject}}",
+        "message": "={{$json.message}}"
+      },
+      "id": "5",
+      "name": "Send Gmail Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        300
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail Account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Email Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Email Data": {
+      "main": [
+        [
+          {
+            "node": "Tavily Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tavily Search": {
+      "main": [
+        [
+          {
+            "node": "Create Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Reply": {
+      "main": [
+        [
+          {
+            "node": "Send Gmail Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1"
+}
